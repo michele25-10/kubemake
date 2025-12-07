@@ -1,0 +1,35 @@
+---
+# https://kubernetes.io/docs/setup/production-environment/tools/kubeadm/install-kubeadm/
+- name: disable swap
+  shell: swapoff -a
+
+- name: download kubernetes repository key
+  get_url:
+    url: "https://pkgs.k8s.io/core:/stable:/{{ kubernetes_version }}/{{ kubernetes_os }}/Release.key"
+    dest: /tmp/kubernetes-release.key
+
+# otherwide next task will prompt for confirmation
+- name: make sure kubernetes repository key does not already exist
+  file:
+    path: /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+    state: absent
+
+- name: add kubernetes repository key to apt keyring
+  shell: gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg /tmp/kubernetes-release.key
+
+- name: add kubernetes repository to sources list
+  lineinfile:
+    path: /etc/apt/sources.list.d/kubernetes.list
+    line: "deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/{{ kubernetes_version }}/{{ kubernetes_os }}/ /"
+    create: yes
+
+- name: install kubelet, kubeadm, and kubectl
+  apt:
+    name: "{{ packages }}"
+    state: present
+    update_cache: yes
+  vars:
+    packages:
+    - kubelet
+    - kubeadm
+    - kubectl

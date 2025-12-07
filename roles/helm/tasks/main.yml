@@ -1,0 +1,10 @@
+---
+# https://helm.sh/docs/intro/install/#from-script
+- name: download helm installer
+  get_url:
+    url: https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3
+    dest: $HOME/get-helm-3.sh
+    mode: '0700'
+
+- name: install helm
+  command: $HOME/get-helm-3.sh

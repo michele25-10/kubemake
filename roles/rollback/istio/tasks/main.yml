@@ -1,0 +1,35 @@
+---
+- name: disable sidecar injection in default namespace
+  kubernetes.core.k8s:
+    kind: Namespace
+    name: default
+    definition:
+      metadata:
+        labels:
+          istio-injection: NULL
+    state: patched
+
+- name: uninstall istio
+  shell: istioctl uninstall --purge --skip-confirmation
+
+- name: delete istio-system namespace
+  kubernetes.core.k8s:
+    kind: Namespace
+    name: istio-system
+    state: absent
+
+- name: delete symlink
+  become: yes
+  file:
+    path: /usr/local/bin/istioctl
+    state: absent
+
+- name: delete manifest
+  file:
+    path: $HOME/istio.yml
+    state: absent
+
+- name: delete istio
+  file:
+    path: $HOME/istio-{{ istio_version }}
+    state: absent

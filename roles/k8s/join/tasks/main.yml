@@ -1,0 +1,76 @@
+---
+- name: create join command
+  shell: kubeadm token create --print-join-command
+  register: join_cmd
+  delegate_to: "{{ groups['masters'][0] }}"
+
+- name: ensure node has not joined yet
+  become: no
+  kubernetes.core.k8s_info:
+    kind: Node
+    name: "{{ hostvars[inventory_hostname]['ansible_hostname'] }}"
+  register: k8s_node
+  delegate_to: "{{ groups['masters'][0] }}"
+
+- name: join cluster
+  block:
+  - name: run join command
+    shell: "{{ join_cmd.stdout_lines[0] }} --cri-socket={{ cri_socket }}"
+    when:
+    - k8s_node.resources == []
+    - "'gpus' not in group_names"
+
+  # some gpus still use cgroup v1 (delete this in the future)
+  - name: run join command and ignore system verification preflight errors
+    shell: "{{ join_cmd.stdout_lines[0] }} --cri-socket={{ cri_socket }} --ignore-preflight-errors=SystemVerification"
+    when:
+    - k8s_node.resources == []
+    - "'gpus' in group_names"
+
+  - name: check if node has joined
+    become: no
+    kubernetes.core.k8s_info:
+      kind: Node
+      name: "{{ ansible_hostname }}"
+    register: k8s_node
+    delegate_to: "{{ groups['masters'][0] }}"
+    until:
+    - k8s_node.resources != []
+    retries: 60
+    delay: 5
+
+  - name: check if status node is ready
+    become: no
+    kubernetes.core.k8s_info:
+      kind: Node
+      name: "{{ ansible_hostname }}"
+      wait: yes
+      wait_timeout: 300
+      wait_condition:
+        status: "True"
+        type: "Ready"
+    delegate_to: "{{ groups['masters'][0] }}"
+  
+- name: add label for gpus
+  become: no
+  kubernetes.core.k8s:
+    kind: Node
+    name: "{{ ansible_hostname }}"
+    definition:
+      metadata:
+        labels:
+          nvidia.com/gpu.present: "true"
+  when: "'gpus' in group_names"
+  delegate_to: "{{ groups['masters'][0] }}"
+
+- name: set --node-ip in /etc/default/kubelet
+  lineinfile:
+    path: /etc/default/kubelet
+    line: KUBELET_EXTRA_ARGS=--node-ip={{ kubelet_node_ip }}
+    create: true
+
+- name: restart kubelet service
+  systemd:
+    daemon_reload: yes
+    name: kubelet
+    state: restarted

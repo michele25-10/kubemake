@@ -1,0 +1,74 @@
+---
+# https://github.com/cri-o/packaging/blob/main/README.md#install-the-dependencies-for-adding-repositories
+- name: add crio configuration file to /etc/modules-load.d/
+  copy:
+    src: modules-load.conf
+    dest: /etc/modules-load.d/crio.conf
+    owner: root
+    group: root
+
+- name: ensure br_netfilter module is loaded
+  shell: modprobe br_netfilter
+
+# this is not required anymore for the latest versions of cri-o
+- name: ensure iptables works properly
+  copy:
+    src: iptables.conf
+    dest: /etc/sysctl.d/99-kubernetes-cri.conf
+    owner: root
+    group: root
+
+- name: reload system kernel parameters
+  shell: sysctl --system
+
+- name: download cri-o repository key
+  get_url:
+    url: "https://download.opensuse.org/repositories/isv:/cri-o:/stable:/{{ crio_version }}/{{ crio_os }}/Release.key"
+    dest: /tmp/crio-release.key
+
+# make sure /etc/apt/keyrings directory exists
+- name: ensure /etc/apt/keyrings directory exists
+  file:
+    path: /etc/apt/keyrings
+    state: directory
+    mode: '0755'
+
+# otherwide next task will prompt for confirmation
+- name: make sure cri-o repository key does not already exist
+  file:
+    path: /etc/apt/keyrings/cri-o-apt-keyring.gpg
+    state: absent
+
+- name: add cri-o repository key to apt keyring
+  shell: gpg --dearmor -o /etc/apt/keyrings/cri-o-apt-keyring.gpg /tmp/crio-release.key
+
+- name: add cri-o repository to sources list
+  lineinfile:
+    path: /etc/apt/sources.list.d/cri-o.list
+    line: "deb [signed-by=/etc/apt/keyrings/cri-o-apt-keyring.gpg] https://download.opensuse.org/repositories/isv:/cri-o:/stable:/{{ crio_version }}/{{ crio_os }}/ /"
+    create: yes
+
+# this is to avoid cri-o installation conflicts (see next task)
+- name: uninstall conmon
+  apt:
+    name: conmon
+    state: absent
+
+- name: install cri-o
+  apt:
+    name: "{{ packages }}"
+    state: present
+    update_cache: yes
+  vars:
+    packages:
+    - cri-o
+
+- name: reload system unit files
+  systemd_service:
+    daemon_reload: true
+
+- name: enable and start cri-o service
+  systemd_service:
+    name: crio
+    enabled: true
+    state: started

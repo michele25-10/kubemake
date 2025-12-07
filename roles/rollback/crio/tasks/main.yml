@@ -1,0 +1,40 @@
+---
+- name: uninstall cri-o
+  apt:
+    name: "{{ packages }}"
+    state: absent
+  vars:
+    packages:
+    - cri-o
+
+- name: reload system unit files
+  systemd_service:
+    daemon_reload: true
+
+- name: delete /etc/apt/sources.list.d/cri-o.list
+  file:
+    path: /etc/apt/sources.list.d/cri-o.list
+    state: absent
+
+- name: delete /etc/apt/keyrings/cri-o-apt-keyring.gpg
+  file:
+    path: /etc/apt/keyrings/cri-o-apt-keyring.gpg
+    state: absent
+
+- name: delete /tmp/crio-release.key
+  file:
+    path: /tmp/crio-release.key
+    state: absent
+
+- name: delete /etc/sysctl.d/99-kubernetes-cri.conf
+  file:
+    path: /etc/sysctl.d/99-kubernetes-cri.conf
+    state: absent
+
+- name: delete /etc/modules-load.d/crio.conf
+  file:
+    path: /etc/modules-load.d/crio.conf
+    state: absent
+
+- name: reload system kernel parameters
+  shell: sysctl --system

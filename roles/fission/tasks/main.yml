@@ -1,0 +1,132 @@
+---
+- name: Create namespace
+  kubernetes.core.k8s:
+    api_version: v1
+    kind: Namespace
+    name: fission
+    state: present
+
+- name: Create crds
+  command: kubectl create -k "github.com/fission/fission/crds/v1?ref={{ fission_version }}"
+  register: result
+  failed_when: 
+  - result.rc != 0
+  - "'AlreadyExists' not in result.stderr"
+
+- name: Create monitoring namespace
+  kubernetes.core.k8s:
+    api_version: v1
+    kind: Namespace
+    name: fission-monitoring
+    state: present
+
+- name: Add prometheus helm repository
+  kubernetes.core.helm_repository:
+    name: prometheus-community
+    repo_url: https://prometheus-community.github.io/helm-charts
+
+- name: Install prometheus
+  kubernetes.core.helm:
+    name: prometheus
+    chart_ref: prometheus-community/kube-prometheus-stack
+    namespace: fission-monitoring
+
+- name: Add helm repository
+  kubernetes.core.helm_repository:
+    name: fission-charts
+    repo_url: https://fission.github.io/fission-charts/
+
+- name: Install fission
+  kubernetes.core.helm:
+    name: fission
+    chart_ref: fission-charts/fission-all
+    namespace: fission
+    chart_version: "{{ fission_version }}"
+    values:
+      enableIstio: true
+      serviceMonitor:
+        enabled: true
+        namespace: fission-monitoring
+        additionalServiceMonitorLabels:
+          release: prometheus
+      podMonitor:
+        enabled: true
+        namespace: fission-monitoring
+        additionalPodMonitorLabels:
+          release: prometheus
+      grafana:
+        namespace: fission-monitoring
+        dashboards:
+          enable: true
+      persistence:
+        enabled: false
+
+- name: Install cli
+  become: yes
+  get_url:
+    url: 'https://github.com/fission/fission/releases/download/{{ fission_version }}/fission-{{ fission_version }}-linux-{{ cni_arch }}'
+    dest: '/usr/local/bin/fission'
+    mode: '0755'
+
+# https://fission.io/blog/event-driven-scaling-fission-function-using-keda/
+- name: Create keda namespace
+  kubernetes.core.k8s:
+    api_version: v1
+    kind: Namespace
+    name: keda
+    state: present
+
+- name: Add kedacore helm repository
+  kubernetes.core.helm_repository:
+    name: kedacore
+    repo_url: https://kedacore.github.io/charts
+
+- name: Install keda
+  kubernetes.core.helm:
+    name: keda
+    chart_ref: kedacore/keda
+    namespace: keda
+
+# https://www.rabbitmq.com/kubernetes/operator/install-operator#helm-chart
+- name: Create rabbitmq namespace
+  kubernetes.core.k8s:
+    api_version: v1
+    kind: Namespace
+    name: rabbitmq
+    state: present
+
+- name: Add rabbitmq helm repository
+  kubernetes.core.helm_repository:
+    name: bitnami
+    repo_url: https://charts.bitnami.com/bitnami
+
+- name: Install rabbitmq
+  kubernetes.core.helm:
+    name: rabbitmq
+    chart_ref: bitnami/rabbitmq-cluster-operator
+    namespace: rabbitmq
+
+- name: Create rabbitmq cluster
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: rabbitmq.com/v1beta1
+      kind: RabbitmqCluster
+      metadata:
+        name: rabbitmq
+        namespace: rabbitmq
+      spec:
+        replicas: 1
+        persistence:
+          storage: 0
+        service:
+          type: NodePort
+        rabbitmq:
+          additionalPlugins:
+          - rabbitmq_mqtt
+          - rabbitmq_management
+          additionalConfig: |
+            mqtt.listeners.tcp.default = 1883
+            mqtt.allow_anonymous = true
+            mqtt.vhost = /
+            mqtt.exchange = amq.topic

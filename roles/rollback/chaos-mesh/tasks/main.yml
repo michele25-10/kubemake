@@ -1,0 +1,49 @@
+---
+- name: delete manager profile in default namespace
+  kubernetes.core.k8s:
+    src: $HOME/chaos-rbac.yaml
+    state: absent
+
+- name: delete rbac file for manager profile in default namespace
+  file:
+    path: $HOME/chaos-rbac.yaml
+    state: absent
+
+- name: delete gateway and virtual service to access chaos dashboard remotely
+  kubernetes.core.k8s:
+    src: $HOME/chaos-dashboard.yaml
+    state: absent
+
+- name: delete config file to access chaos dashboard remotely
+  file:
+    path: $HOME/chaos-dashboard.yaml
+    state: absent
+
+- name: disable chaos mesh in default namespace
+  kubernetes.core.k8s:
+    kind: Namespace
+    name: default
+    definition:
+      metadata:
+        annotations:
+          chaos-mesh.org/inject: NULL
+    state: patched
+  
+- name: uninstall chaos mesh
+  kubernetes.core.helm:
+    name: chaos-mesh
+    release_namespace: chaos-mesh
+    state: absent
+    wait: yes
+
+- name: delete chaos-mesh namespace
+  kubernetes.core.k8s:
+    api_version: v1
+    kind: Namespace
+    name: chaos-mesh
+    state: absent
+
+- name: delete chaos mesh repository
+  kubernetes.core.helm_repository:
+    name: chaos-mesh
+    state: absent

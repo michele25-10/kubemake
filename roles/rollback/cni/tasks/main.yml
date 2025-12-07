@@ -1,0 +1,16 @@
+---
+- name: delete /etc/cni/
+  file:
+    path: /etc/cni
+    state: absent
+
+- name: delete /var/lib/cni/
+  file:
+    path: /var/lib/cni
+    state: absent
+
+- name: delete /opt/cni/
+  file:
+    path: /opt/cni
+    state: absent
+

@@ -1,0 +1,12 @@
+---
+# https://artifacthub.io/packages/helm/prometheus-community/kube-state-metrics/
+- name: add prometheus-community repository
+  kubernetes.core.helm_repository:
+    name: prometheus-community
+    repo_url: "https://prometheus-community.github.io/helm-charts"
+
+- name: install kube-state-metrics
+  kubernetes.core.helm:
+    name: kube-state-metrics
+    release_namespace: kube-system
+    chart_ref: prometheus-community/kube-state-metrics
