@@ -1,64 +1,64 @@
 ---
-- hosts: masters
-  become: no
-  tags:
-  - serverless
-  roles:
-  - rollback/fission
+# - hosts: masters
+#   become: no
+#   tags:
+#   - serverless
+#   roles:
+#   - rollback/fission
 
-- hosts: masters
-  become: no
-  tags:
-  - chaos
-  roles:
-  - rollback/chaos-mesh
+# - hosts: masters
+#   become: no
+#   tags:
+#   - chaos
+#   roles:
+#   - rollback/chaos-mesh
 
-- hosts: masters
-  become: no
-  tags:
-  - telemetry
-  roles:
-  - rollback/kube-state-metrics
-  - rollback/metrics-server
-  - rollback/istio/addons
+# - hosts: masters
+#   become: no
+#   tags:
+#   - telemetry
+#   roles:
+#   - rollback/kube-state-metrics
+#   - rollback/metrics-server
+#   - rollback/istio/addons
 
-- hosts: masters
-  become: no
-  tags:
-  - mesh
-  roles:
-  - rollback/istio
+# - hosts: masters
+#   become: no
+#   tags:
+#   - mesh
+#   roles:
+#   - rollback/istio
 
 - hosts: workers
   become: yes
   tags:
-  - join
+    - join
   roles:
-  - rollback/k8s/join
+    - rollback/k8s/join
 
 - hosts: masters
   become: yes
   tags:
-  - init
+    - init
   roles:
-  - rollback/nvidia/k8s
-  - rollback/flannel
-  - rollback/helm
-  - rollback/k8s/init
+    - rollback/k8s/init
+    - rollback/flannel
+#    - rollback/helm
+#    - rollback/nvidia/k8s
 
-- hosts: gpus
-  become: yes
-  tags:
-  - setup
-  roles:
-  - rollback/nvidia/crio
+# - hosts: gpus
+#   become: yes
+#   tags:
+#     - setup
+#   roles:
+#     - rollback/nvidia/crio
 
 - hosts: all
   become: yes
   tags:
-  - setup
+    - setup
   roles:
-  - rollback/cni
-  - rollback/k8s/common
-  - rollback/crio
-  - rollback/common
+    - rollback/cni
+    - rollback/k8s/common
+    - rollback/crio
+    - rollback/common
