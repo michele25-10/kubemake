@@ -195,3 +195,20 @@ master    Ready    master   ...   v1.29.9   192.168.1.1
 worker-1  Ready    <none>   ...   v1.29.9   192.168.1.2
 worker-2  Ready    <none>   ...   v1.29.9   192.168.1.3
 ```
+
+# Passi successivi
+
+Per inserire un progetto all'interno del cluster devi accedere alla macchina master controllare lo stato dei nodi.
+Da qui esegui poi i file di configurazione del progetto.
+
+1. `docker build -t tuo-username/nome-progetto:tag .`
+2. `docker push tuo-username/nome-progetto:tag`
+3. ```bash
+   kubectl apply -f deployment.yaml
+   kubectl apply -f service.yaml
+   ```
+4. ```bash
+   kubectl get pods
+   kubectl get pods -o wide   # vedere su quale nodo girano
+   ```
+5. `kubectl get svc`
