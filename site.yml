@@ -11,21 +11,6 @@
     - k8s/common
     - cni
 
-# - hosts: controllers
-#   become: yes
-#   tags:
-#     - setup
-#   roles:
-#     - common
-#     - k8s/common
-
-# - hosts: gpus
-#   become: yes
-#   tags:
-#     - setup
-#   roles:
-#     - nvidia/crio
-
 - hosts: masters
   become: yes
   tags:
@@ -33,16 +18,6 @@
   roles:
     - k8s/init
     - flannel
-#    - nvidia/k8s
-#    - helm
-
-# - hosts: controllers
-#   become: no
-#   tags:
-#     - init
-#   roles:
-#     - k8s/remote
-#     - helm
 
 - hosts: workers
   become: yes
@@ -50,39 +25,3 @@
     - join
   roles:
     - k8s/join
-# - hosts: masters
-#   become: no
-#   tags:
-#     - mesh
-#   roles:
-#     - istio
-
-# - hosts: masters
-#   become: no
-#   tags:
-#     - telemetry
-#   roles:
-#     - metrics-server
-#     - kube-state-metrics
-#     - istio/addons
-
-# - hosts: masters
-#   become: no
-#   tags:
-#     - chaos
-#   roles:
-#     - chaos-mesh
-
-# - hosts: masters
-#   become: no
-#   tags:
-#     - serverless
-#   roles:
-#     - fission
-
-# - hosts: controllers
-#   become: no
-#   tags:
-#     - serverless
-#   roles:
-#     - fission/remote
