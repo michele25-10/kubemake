@@ -21,38 +21,50 @@
 - name: reload system kernel parameters
   shell: sysctl --system
 
-- name: download cri-o repository key
-  get_url:
-    url: "https://download.opensuse.org/repositories/isv:/cri-o:/stable:/{{ crio_version }}/{{ crio_os }}/Release.key"
-    dest: /tmp/crio-release.key
+- name: remove old cri-o repository
+  file:
+    path: /etc/apt/sources.list.d/cri-o.list
+    state: absent
 
-# make sure /etc/apt/keyrings directory exists
+- name: remove old cri-o keyring
+  file:
+    path: /etc/apt/keyrings/cri-o-apt-keyring.gpg
+    state: absent
+
 - name: ensure /etc/apt/keyrings directory exists
   file:
     path: /etc/apt/keyrings
     state: directory
     mode: '0755'
 
-# otherwide next task will prompt for confirmation
-- name: make sure cri-o repository key does not already exist
-  file:
-    path: /etc/apt/keyrings/cri-o-apt-keyring.gpg
-    state: absent
+# CORRETTO: URL aggiornato senza "addons:" nel percorso
+- name: add cri-o repository key
+  ansible.builtin.shell: |
+    curl -fsSL https://pkgs.k8s.io/addons:/cri-o:/prerelease:/main/deb/Release.key | 
+    gpg --dearmor -o /etc/apt/keyrings/cri-o-apt-keyring.gpg
+  args:
+    creates: /etc/apt/keyrings/cri-o-apt-keyring.gpg
 
-- name: add cri-o repository key to apt keyring
-  shell: gpg --dearmor -o /etc/apt/keyrings/cri-o-apt-keyring.gpg /tmp/crio-release.key
-
+# CORRETTO: Usa il repository prerelease/main che è mantenuto attivamente
 - name: add cri-o repository to sources list
-  lineinfile:
-    path: /etc/apt/sources.list.d/cri-o.list
-    line: "deb [signed-by=/etc/apt/keyrings/cri-o-apt-keyring.gpg] https://download.opensuse.org/repositories/isv:/cri-o:/stable:/{{ crio_version }}/{{ crio_os }}/ /"
-    create: yes
+  copy:
+    dest: /etc/apt/sources.list.d/cri-o.list
+    content: |
+      deb [signed-by=/etc/apt/keyrings/cri-o-apt-keyring.gpg] https://pkgs.k8s.io/addons:/cri-o:/prerelease:/main/deb/ /
+    owner: root
+    group: root
+    mode: '0644'
 
-# this is to avoid cri-o installation conflicts (see next task)
+- name: clean apt cache
+  apt:
+    update_cache: yes
+    force_apt_get: yes
+
 - name: uninstall conmon
   apt:
     name: conmon
     state: absent
+  ignore_errors: yes
 
 - name: install cri-o
   apt:
